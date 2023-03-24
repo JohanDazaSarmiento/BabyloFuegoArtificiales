@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+
+        <title>Babylon.js sample code</title>
+
+        <!-- Babylon.js -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.6.2/dat.gui.min.js"></script>
+        <script src="https://assets.babylonjs.com/generated/Assets.js"></script>
+        <script src="https://preview.babylonjs.com/ammo.js"></script>
+        <script src="https://preview.babylonjs.com/cannon.js"></script>
+        <script src="https://preview.babylonjs.com/Oimo.js"></script>
+        <script src="https://preview.babylonjs.com/earcut.min.js"></script>
+        <script src="https://preview.babylonjs.com/babylon.js"></script>
+        <script src="https://preview.babylonjs.com/materialsLibrary/babylonjs.materials.min.js"></script>
+        <script src="https://preview.babylonjs.com/proceduralTexturesLibrary/babylonjs.proceduralTextures.min.js"></script>
+        <script src="https://preview.babylonjs.com/postProcessesLibrary/babylonjs.postProcess.min.js"></script>
+        <script src="https://preview.babylonjs.com/loaders/babylonjs.loaders.js"></script>
+        <script src="https://preview.babylonjs.com/serializers/babylonjs.serializers.min.js"></script>
+        <script src="https://preview.babylonjs.com/gui/babylon.gui.min.js"></script>
+        <script src="https://preview.babylonjs.com/inspector/babylon.inspector.bundle.js"></script>
+
+        <style>
+            html, body {
+                overflow: hidden;
+                width: 100%;
+                height: 100%;
+                margin: 0;
+                padding: 0;
+            }
+
+            #renderCanvas {
+                width: 100%;
+                height: 100%;
+                touch-action: none;
+            }
+        </style>
+    </head>
+<body>
+    <canvas id="renderCanvas"></canvas>
+    <script>
+        var canvas = document.getElementById("renderCanvas");
+
+        var startRenderLoop = function (engine, canvas) {
+            engine.runRenderLoop(function () {
+                if (sceneToRender && sceneToRender.activeCamera) {
+                    sceneToRender.render();
+                }
+            });
+        }
+
+        var engine = null;
+        var scene = null;
+        var sceneToRender = null;
+        var createDefaultEngine = function() { return new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true,  disableWebGL2Support: false}); };
+        var createScene = function () {
+//johan Daza carlos peña
+//url origina del codifo tutorialhttps://www.babylonjs-playground.com/#6L83EP#2
+
+    var scene = new BABYLON.Scene(engine);
+
+
+    var camera = new BABYLON.FreeCamera("camera1", new BABYLON.Vector3(0, 5, -100), scene);
+
+
+    camera.setTarget(BABYLON.Vector3.Zero());
+
+
+    camera.attachControl(canvas, true);
+
+
+    var light = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
+
+
+    light.intensity = 0.7;
+
+
+    var ground = BABYLON.Mesh.CreateGround("ground1", 6, 6, 2, scene);
+
+
+
+
+    var artifice = new Artifice(scene);
+    artifice.createArtifice();
+
+
+    return scene;
+
+
+};
+
+
+class Artifice
+{   
+    constructor(scene)
+    {
+        this.isTop = false;
+        this.timer = 0;
+        this.isFired = false;
+        this.timer1 = 0;        
+        this.nombreParticles = 850;     
+        this.textureFirework = "textures/flare.png";
+        this.scene = scene;
+    }
+    
+    createArtifice()
+    {
+        this.startSphere = BABYLON.Mesh.CreateSphere("Firework", 4, 1, this.scene);
+        this.startSphere.position = new BABYLON.Vector3(0, 0, 0);
+        this.startSphere.color = new BABYLON.Color4(1, 0.8, 1.0, 0.5);
+        this.startSphere.isVisible = true;      
+        this.shoot();
+    }
+    
+    shoot()
+    {
+        let particleSystem = null;
+        if(BABYLON.GPUParticleSystem.IsSupported) {
+            particleSystem = new BABYLON.GPUParticleSystem("particles", {capacity: 1000}, this.scene);           
+        } else {
+            particleSystem = new BABYLON.ParticleSystem("particles", this.nombreParticles, this.scene);         
+        }       
+        particleSystem.particleTexture = new BABYLON.Texture(this.textureFirework, this.scene);
+        particleSystem.emitter = this.startSphere; 
+        particleSystem.minEmitBox = new BABYLON.Vector3(0, 0, 0);
+        particleSystem.maxEmitBox = new BABYLON.Vector3(0, 0, 0); 
+        particleSystem.color1 = new BABYLON.Color4(0.47, 0.03, 0.47);
+        particleSystem.color2 = new BABYLON.Color4(0.6, 0.21, 0.09);
+        particleSystem.colorDead = new BABYLON.Color4(0.16, 0.2, 0, 0.5);
+        //particleSystem.minSize = 0.5;
+        particleSystem.minSize = 0.9;
+        //particleSystem.maxSize = 1;
+        particleSystem.maxSize = 10;
+        particleSystem.minLifeTime = 0.5;
+        particleSystem.maxLifeTime = .5;
+        particleSystem.emitRate = this.nombreParticles;
+        particleSystem.blendMode = BABYLON.ParticleSystem.BLENDMODE_ONEONE;
+        particleSystem.direction1 = new BABYLON.Vector3(0, -2, 0);
+        particleSystem.direction2 = new BABYLON.Vector3(0, -2, 0);
+        //particleSystem.minEmitPower = 1;
+        particleSystem.minEmitPower = 5;
+        particleSystem.maxEmitPower = 1;
+        particleSystem.updateSpeed = 0.05;
+        
+        let bigEnough = false;      
+        let updateFunction = function(particles) {
+            for (let index = 0; index < particles.length; index++) {
+                let particle = particles[index];
+                particle.age += this._scaledUpdateSpeed;
+                if (particle.age >= particle.lifeTime) {
+                    this.recycleParticle(particle);
+                    index--;
+                    continue;
+                } else {
+                    if(!bigEnough){
+                        particle.size -= .01;                            
+                    }
+                    particle.direction.scaleToRef(particleSystem._scaledUpdateSpeed, particleSystem._scaledDirection);
+                    particle.position.addInPlace(particleSystem._scaledDirection);
+                    particleSystem.gravity.scaleToRef(particleSystem._scaledUpdateSpeed, particleSystem._scaledGravity);
+                    particle.direction.addInPlace(particleSystem._scaledGravity);
+                }
+            }
+        };
+        particleSystem.updateFunction = updateFunction; 
+        particleSystem.start();    
+        
+        this.scene.registerBeforeRender(() => {
+            if(this.isFired == false){
+                if(!this.isTop){
+                    this.startSphere.position.y += .5;
+                    if(this.startSphere.position.y > 30){
+                        this.isTop = true;                      
+                        particleSystem.stop();
+                        this.startSphere.position.x -= .5;                      
+                    }
+                } else {
+                    this.timer +=5;
+                    if(this.timer == 125){
+                        this.isFired = true;
+                        this.firework();
+                    }
+                }
+            }
+        });
+    }
+           
+    static getRandomBetween(Min, Max){
+        let Range = Max - Min;
+        let Rand = Math.random();
+        let num = Min + Math.round(Rand * Range);
+        return num;
+    }
+
+
+    firework()
+    { 
+        let emiter = BABYLON.Mesh.CreateSphere("explosion", 4, 1, this.scene);
+        emiter.isVisible = false;
+        emiter.useVertexColors = true;
+        emiter.position.x = Artifice.getRandomBetween(-5, 5);
+        emiter.position.y = Artifice.getRandomBetween(30, 40);
+        emiter.position.z = Artifice.getRandomBetween(-5, 5);       
+        let verticesPositions = emiter.getVerticesData(BABYLON.VertexBuffer.PositionKind);
+        let verticesNormals = emiter.getVerticesData(BABYLON.VertexBuffer.NormalKind);
+        let verticesColor = [];
+
+
+        for (let i = 0; i < verticesPositions.length; i += 3){
+            let vertexPosition = new BABYLON.Vector3(verticesPositions[i], verticesPositions[i + 1], verticesPositions[i + 2]);
+            let vertexNormal = new BABYLON.Vector3(verticesNormals[i], verticesNormals[i + 1], verticesNormals[i + 2]);
+            let r = Math.random();
+            let g = Math.random();
+            let b = Math.random();
+            let alpha = 0.8;
+            let color = new BABYLON.Color4(r, g, b, alpha);
+            verticesColor.push(r);
+            verticesColor.push(g);
+            verticesColor.push(b);
+            verticesColor.push(alpha);
+            let gizmo = BABYLON.Mesh.CreateBox('gizmo', 0.001, this.scene);
+            gizmo.position = vertexPosition;
+            gizmo.parent = emiter;
+            this.createParticleSystem(gizmo, vertexNormal.normalize().scale(1), color);
+        }
+        emiter.setVerticesData(BABYLON.VertexBuffer.ColorKind, verticesColor);
+    }
+    
+    createParticleSystem(emitter, direction, color)
+    {
+        let bigEnough  = false;
+       
+        //if(BABYLON.GPUParticleSystem.IsSupported) {
+        //    this.particleSystemExplosion = new BABYLON.GPUParticleSystem("particles", {capacity: 1000}, this.scene);           
+        //} else {
+            this.particleSystemExplosion = new BABYLON.ParticleSystem("particles", this.nombreParticles, this.scene);           
+        //} 
+       
+        let that = this;
+        let updateFunction = function(particles) {
+            for (let index = 0; index < particles.length; index++) {
+                let particle = particles[index];
+                particle.age += this._scaledUpdateSpeed;
+                if (particle.age >= particle.lifeTime) {
+                    this.recycleParticle(particle);
+                    index--;
+                    continue;
+                } else {
+                    if(!bigEnough){
+                        particle.size = particle.size +.005;
+                        if(particle.size >= .162){
+                            bigEnough =! bigEnough;
+                        }
+                    }
+                    particle.direction.scaleToRef(that.particleSystemExplosion._scaledUpdateSpeed, that.particleSystemExplosion._scaledDirection);
+                    particle.position.addInPlace(that.particleSystemExplosion._scaledDirection);
+                    that.particleSystemExplosion.gravity.scaleToRef(that.particleSystemExplosion._scaledUpdateSpeed, that.particleSystemExplosion._scaledGravity);
+                    particle.direction.addInPlace(that.particleSystemExplosion._scaledGravity);
+                }
+            }
+        };
+        
+         this.particleSystemExplosion.updateFunction = updateFunction;
+         this.particleSystemExplosion.domeRadius = 10;
+         this.particleSystemExplosion.particleTexture = new BABYLON.Texture(this.textureFirework, this.scene);
+         this.particleSystemExplosion.emitter = emitter;
+         this.particleSystemExplosion.minEmitBox = new BABYLON.Vector3(1, 0, 0); 
+         this.particleSystemExplosion.maxEmitBox = new BABYLON.Vector3(1, 0, 0);
+         this.particleSystemExplosion.color1 = color;
+         this.particleSystemExplosion.color2 = color;
+         this.particleSystemExplosion.colorDead = new BABYLON.Color4(0, 0, 0, 0.0);
+         this.particleSystemExplosion.minSize = .1;
+         this.particleSystemExplosion.maxSize = .1;
+         this.particleSystemExplosion.minLifeTime = 1;
+         this.particleSystemExplosion.maxLifeTime = 2;      
+         this.particleSystemExplosion.emitRate = 450;
+         this.particleSystemExplosion.blendMode = BABYLON.ParticleSystem.BLENDMODE_ONEONE;
+         this.particleSystemExplosion.gravity = new BABYLON.Vector3(0, -9.81, 0);
+         this.particleSystemExplosion.direction1 = direction;
+         this.particleSystemExplosion.direction2 = direction;            
+         this.particleSystemExplosion.minEmitPower = 10;
+         this.particleSystemExplosion.maxEmitPower = 12;
+         this.particleSystemExplosion.updateSpeed = 0.01;
+         this.particleSystemExplosion.start();        
+        
+        this.scene.registerBeforeRender(() =>{
+            if(this.timer1 < 300) {
+                this.timer1 += 0.15;
+            } else {
+                 this.particleSystemExplosion.stop();
+            }
+        });
+    }
+}
+
+
+                window.initFunction = async function() {
+                    
+                    
+                    var asyncEngineCreation = async function() {
+                        try {
+                        return createDefaultEngine();
+                        } catch(e) {
+                        console.log("the available createEngine function failed. Creating the default engine instead");
+                        return createDefaultEngine();
+                        }
+                    }
+
+                    window.engine = await asyncEngineCreation();
+        if (!engine) throw 'engine should not be null.';
+        startRenderLoop(engine, canvas);
+        window.scene = createScene();};
+        initFunction().then(() => {sceneToRender = scene                    
+        });
+
+        // Resize
+        window.addEventListener("resize", function () {
+            engine.resize();
+        });
+    </script>
+</body>
+</html>
